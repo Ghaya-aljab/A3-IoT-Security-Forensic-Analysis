@@ -70,8 +70,9 @@ print(f"Binary - Train: {X_train_garage_bin.shape}, Test: {X_test_garage_bin.sha
 print(f"Multi-class - Train: {X_train_garage_multi.shape}, Test: {X_test_garage_multi.shape}, Validation: {X_val_garage_multi.shape}")
 
 
-#Part 2 and 3: 
-#Binary Classification: 
+#Part 2:  AI model development and #Part 3: Model evaluation
+
+#Binary Classification Code: 
 
 print("\n===== Binary Classification (Garage Door Device) =====")
 
@@ -151,8 +152,7 @@ fig.tight_layout()
 plt.show()
 
 
-#Multi-Class Classification: 
-
+#Multi-Class Classification with remapping labels Code: 
 #Remapping Multi-Class Labels
 def map_attack_types(label):
     if label == 'normal':
@@ -274,5 +274,5 @@ plot_per_class_metrics(class_labels, precisions_rf, recalls_rf, f1s_rf, model_na
 plot_per_class_metrics(['minor_attack', 'normal', 'severe_attack'], precisions_xgb, recalls_xgb, f1s_xgb, model_name="XGBoost (Garage Door)")
 
 
-#Part 4: Validation: 
+#Part 4: Validation Code:  
 
