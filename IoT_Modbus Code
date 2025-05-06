@@ -1,1 +1,213 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, confusion_matrix
+from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report, confusion_matrix, precision_recall_fscore_support
+
+
+#Part 1:Preprocessing Code: 
+#Loading dataset
+print("Loading IoT_Modbus.csv.xlsx...")
+df_modbus = pd.read_excel('IoT_Modbus.csv.xlsx')
+
+#Adding the required columns
+df_modbus['device_type'] = 'Modbus'
+df_modbus['prediction'] = df_modbus['type']
+
+#Before preprocessing
+print("\n--- Before Preprocessing ---")
+print(df_modbus.head())
+
+#Dropping unused columns
+df_modbus = df_modbus.drop(columns=['date', 'time', 'type'])
+df_modbus = df_modbus.dropna()
+
+#Feature selection
+features = ['FC1_Read_Input_Register', 'FC2_Read_Discrete_Value',
+            'FC3_Read_Holding_Register', 'FC4_Read_Coil']
+X_modbus = df_modbus[features]
+
+#Target columns
+y_modbus_binary = df_modbus['label']
+y_modbus_multi = df_modbus['prediction']
+
+#Normalize features
+scaler = StandardScaler()
+X_modbus_scaled = scaler.fit_transform(X_modbus)
+X_modbus_scaled_df = pd.DataFrame(X_modbus_scaled, columns=features)
+
+print("\n--- After Preprocessing ---")
+print(X_modbus_scaled_df.head())
+
+#Splits
+X_temp_bin, X_val_modbus_bin, y_temp_bin, y_val_modbus_bin = train_test_split(
+    X_modbus_scaled, y_modbus_binary, test_size=0.10, random_state=42, stratify=y_modbus_binary)
+
+X_train_modbus_bin, X_test_modbus_bin, y_train_modbus_bin, y_test_modbus_bin = train_test_split(
+    X_temp_bin, y_temp_bin, test_size=2/9, random_state=42, stratify=y_temp_bin)
+
+X_temp_multi, X_val_modbus_multi, y_temp_multi, y_val_modbus_multi = train_test_split(
+    X_modbus_scaled, y_modbus_multi, test_size=0.10, random_state=42, stratify=y_modbus_multi)
+
+X_train_modbus_multi, X_test_modbus_multi, y_train_modbus_multi, y_test_modbus_multi = train_test_split(
+    X_temp_multi, y_temp_multi, test_size=2/9, random_state=42, stratify=y_temp_multi)
+
+print("\nPreprocessing complete for Modbus.")
+print(f"Binary - Train: {X_train_modbus_bin.shape}, Test: {X_test_modbus_bin.shape}, Validation: {X_val_modbus_bin.shape}")
+print(f"Multi-class - Train: {X_train_modbus_multi.shape}, Test: {X_test_modbus_multi.shape}, Validation: {X_val_modbus_multi.shape}")
+
+
+#Part 2 and 3: 
+#Binary Classification: 
+print("\n===== Binary Classification =====")
+
+#Applying SMOTE
+smote = SMOTE(random_state=42)
+X_train_modbus_bin_smote, y_train_modbus_bin_smote = smote.fit_resample(X_train_modbus_bin, y_train_modbus_bin)
+
+#Train RF
+rf_modbus_bin = RandomForestClassifier(random_state=42)
+rf_modbus_bin.fit(X_train_modbus_bin_smote, y_train_modbus_bin_smote)
+y_pred_rf_modbus_bin = rf_modbus_bin.predict(X_test_modbus_bin)
+
+#Train XGBoost
+xgb_modbus_bin = XGBClassifier(eval_metric='logloss', random_state=42)
+xgb_modbus_bin.fit(X_train_modbus_bin_smote, y_train_modbus_bin_smote)
+y_pred_xgb_modbus_bin = xgb_modbus_bin.predict(X_test_modbus_bin)
+
+#Evaluate RF
+print("\n--- Random Forest (Binary - Modbus with SMOTE) ---")
+print(classification_report(y_test_modbus_bin, y_pred_rf_modbus_bin, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_modbus_bin, y_pred_rf_modbus_bin), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest Confusion Matrix (Modbus - Binary with SMOTE)")
+plt.show()
+
+#Evaluate XGBoost
+print("\n--- XGBoost (Binary - Modbus with SMOTE) ---")
+print(classification_report(y_test_modbus_bin, y_pred_xgb_modbus_bin, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_modbus_bin, y_pred_xgb_modbus_bin), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost Confusion Matrix (Modbus - Binary with SMOTE)")
+plt.show()
+
+#Bar Chart comparison 
+labels = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+rf_scores = [accuracy_score(y_test_modbus_bin, y_pred_rf_modbus_bin),
+             precision_score(y_test_modbus_bin, y_pred_rf_modbus_bin),
+             recall_score(y_test_modbus_bin, y_pred_rf_modbus_bin),
+             f1_score(y_test_modbus_bin, y_pred_rf_modbus_bin)]
+
+xgb_scores = [accuracy_score(y_test_modbus_bin, y_pred_xgb_modbus_bin),
+              precision_score(y_test_modbus_bin, y_pred_xgb_modbus_bin),
+              recall_score(y_test_modbus_bin, y_pred_xgb_modbus_bin),
+              f1_score(y_test_modbus_bin, y_pred_xgb_modbus_bin)]
+
+x = np.arange(len(labels))
+width = 0.3
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, rf_scores, width, label='Random Forest')
+rects2 = ax.bar(x + width/2, xgb_scores, width, label='XGBoost')
+
+ax.set_ylabel('Score')
+ax.set_title('Binary Classification Metrics (Modbus with SMOTE)')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+
+# Annotate bars
+for rects in [rects1, rects2]:
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(f'{height:.2f}', xy=(rect.get_x() + rect.get_width()/2, height),
+                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+
+plt.tight_layout()
+plt.show()
+
+
+#Multi-Class Classification: 
+print("\n===== Multi-Class Classification (Modbus Device) =====")
+
+#Encode labels
+le_modbus = LabelEncoder()
+y_train_modbus_multi_encoded = le_modbus.fit_transform(y_train_modbus_multi)
+y_test_modbus_multi_encoded = le_modbus.transform(y_test_modbus_multi)
+
+#Applying SMOTE
+smote_multi = SMOTE(random_state=42)
+X_train_modbus_multi_smote, y_train_modbus_multi_smote = smote_multi.fit_resample(
+    X_train_modbus_multi, y_train_modbus_multi)
+y_train_modbus_multi_smote_encoded = le_modbus.transform(y_train_modbus_multi_smote)
+
+#Train RF
+rf_modbus_multi = RandomForestClassifier(random_state=42)
+rf_modbus_multi.fit(X_train_modbus_multi_smote, y_train_modbus_multi_smote)
+y_pred_rf_modbus_multi = rf_modbus_multi.predict(X_test_modbus_multi)
+
+#Train XGBoost
+xgb_modbus_multi = XGBClassifier(eval_metric='mlogloss', random_state=42)
+xgb_modbus_multi.fit(X_train_modbus_multi_smote, y_train_modbus_multi_smote_encoded)
+y_pred_xgb_modbus_multi = xgb_modbus_multi.predict(X_test_modbus_multi)
+
+#Evaluation RF
+print("\n--- Random Forest (Multi-Class) ---")
+print(classification_report(y_test_modbus_multi, y_pred_rf_modbus_multi, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_modbus_multi, y_pred_rf_modbus_multi), annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix - Random Forest (Modbus Multi-Class)")
+plt.show()
+
+#Evaluation XGBoost
+print("\n--- XGBoost (Multi-Class) ---")
+print(classification_report(y_test_modbus_multi_encoded, y_pred_xgb_modbus_multi, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_modbus_multi_encoded, y_pred_xgb_modbus_multi), annot=True, fmt='d', cmap='Greens')
+plt.title("Confusion Matrix - XGBoost (Modbus Multi-Class)")
+plt.show()
+
+class_labels = le_modbus.classes_
+
+#RF metrics 
+prec_rf_class, recall_rf_class, f1_rf_class, _ = precision_recall_fscore_support(
+    y_test_modbus_multi, y_pred_rf_modbus_multi, labels=class_labels, zero_division=0, average=None)
+
+#XGBoost metrics
+prec_xgb_class, recall_xgb_class, f1_xgb_class, _ = precision_recall_fscore_support(
+    y_test_modbus_multi_encoded, y_pred_xgb_modbus_multi, labels=np.unique(y_test_modbus_multi_encoded), zero_division=0, average=None)
+
+def plot_class_metrics(class_labels, precisions, recalls, f1s, model_name):
+    x = np.arange(len(class_labels))
+    width = 0.2
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    rects1 = ax.bar(x - width, precisions * 100, width, label='Precision')
+    rects2 = ax.bar(x, recalls * 100, width, label='Recall')
+    rects3 = ax.bar(x + width, f1s * 100, width, label='F1-Score')
+
+    ax.set_ylabel('Score (%)')
+    ax.set_title(f'Per-Class Metrics ({model_name} - Modbus)')
+    ax.set_xticks(x)
+    ax.set_xticklabels(class_labels, rotation=45)
+    ax.set_ylim(0, 110)
+    ax.legend()
+
+    for rects in [rects1, rects2, rects3]:
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f'{height:.1f}%', xy=(rect.get_x() + rect.get_width()/2, height),
+                        xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+
+    plt.tight_layout()
+    plt.show()
+
+plot_class_metrics(class_labels, prec_rf_class, recall_rf_class, f1_rf_class, "Random Forest")
+plot_class_metrics(class_labels, prec_xgb_class, recall_xgb_class, f1_xgb_class, "XGBoost")
+
+
+#Part 4: Validation 
 
