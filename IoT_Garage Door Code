@@ -1,1 +1,278 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from imblearn.over_sampling import SMOTE
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder
+
+
+#Part 1: Preprocessing Code: 
+#Loading the dataset
+print("Loading IoT_Garage_Door.csv.xlsx...")
+df_garage = pd.read_excel('IoT_Garage_Door.csv.xlsx')
+
+#Adding device_type and prediction columns
+df_garage['device_type'] = 'Garage_Door'
+df_garage['prediction'] = df_garage['type']  
+
+#Before Preprocessing
+print("\n--- Before Preprocessing  ---")
+print(df_garage.head())
+
+#Dropping unnecessary columns
+df_garage = df_garage.drop(columns=['date', 'time', 'type'])
+
+#Converting 'door_state' to numeric (open = 1, closed = 0)
+df_garage['door_state'] = df_garage['door_state'].map({'open': 1, 'closed': 0})
+
+#Converting 'sphone_signal' (True/False) to numeric 1/0
+df_garage['sphone_signal'] = pd.to_numeric(df_garage['sphone_signal'], errors='coerce')
+
+df_garage = df_garage.dropna()
+
+#Selecting features
+features = ['door_state', 'sphone_signal']
+X_garage = df_garage[features]
+
+y_garage_binary = df_garage['label']            
+y_garage_multi = df_garage['prediction']         
+
+#Normalizing features
+scaler = StandardScaler()
+X_garage_scaled = scaler.fit_transform(X_garage)
+X_garage_scaled_df = pd.DataFrame(X_garage_scaled, columns=features)
+
+#After Preprocessing
+print("\n--- After Preprocessing ---")
+print(X_garage_scaled_df.head())
+
+#Splitting binary
+X_temp_bin, X_val_garage_bin, y_temp_bin, y_val_garage_bin = train_test_split(
+    X_garage_scaled, y_garage_binary, test_size=0.10, random_state=42)
+
+X_train_garage_bin, X_test_garage_bin, y_train_garage_bin, y_test_garage_bin = train_test_split(
+    X_temp_bin, y_temp_bin, test_size=0.2222, random_state=42)  # to get 70% train, 20% test
+
+#Splitting multi-class 
+X_temp_multi, X_val_garage_multi, y_temp_multi, y_val_garage_multi = train_test_split(
+    X_garage_scaled, y_garage_multi, test_size=0.10, random_state=42)
+
+X_train_garage_multi, X_test_garage_multi, y_train_garage_multi, y_test_garage_multi = train_test_split(
+    X_temp_multi, y_temp_multi, test_size=0.2222, random_state=42)
+
+print("\nPreprocessing complete for Garage Door Device.")
+print(f"Binary - Train: {X_train_garage_bin.shape}, Test: {X_test_garage_bin.shape}, Validation: {X_val_garage_bin.shape}")
+print(f"Multi-class - Train: {X_train_garage_multi.shape}, Test: {X_test_garage_multi.shape}, Validation: {X_val_garage_multi.shape}")
+
+
+#Part 2 and 3: 
+#Binary Classification: 
+
+print("\n===== Binary Classification (Garage Door Device) =====")
+
+#Applying SMOTE
+print("\nApplying SMOTE to Binary Training Data...")
+smote_bin = SMOTE(random_state=42)
+X_train_garage_bin_smote, y_train_garage_bin_smote = smote_bin.fit_resample(X_train_garage_bin, y_train_garage_bin)
+
+print("New class distribution after SMOTE:")
+print(y_train_garage_bin_smote.value_counts())
+
+#RF
+rf_garage_bin = RandomForestClassifier(random_state=42)
+rf_garage_bin.fit(X_train_garage_bin_smote, y_train_garage_bin_smote)
+y_pred_rf_garage_bin = rf_garage_bin.predict(X_test_garage_bin)
+
+print("\n--- Random Forest (Binary) ---")
+print(classification_report(y_test_garage_bin, y_pred_rf_garage_bin, zero_division=0))
+
+#Confusion Matrix - RF
+plt.figure(figsize=(6,4))
+sns.heatmap(confusion_matrix(y_test_garage_bin, y_pred_rf_garage_bin), annot=True, fmt='d', cmap='Blues')
+plt.title('Confusion Matrix - Random Forest (Binary - Garage Door)')
+plt.show()
+
+#XGBoost 
+xgb_garage_bin = XGBClassifier(eval_metric='logloss', random_state=42)
+xgb_garage_bin.fit(X_train_garage_bin_smote, y_train_garage_bin_smote)
+y_pred_xgb_garage_bin = xgb_garage_bin.predict(X_test_garage_bin)
+
+print("\n--- XGBoost (Binary) ---")
+print(classification_report(y_test_garage_bin, y_pred_xgb_garage_bin, zero_division=0))
+
+#Confusion Matrix - XGBoost
+plt.figure(figsize=(6,4))
+sns.heatmap(confusion_matrix(y_test_garage_bin, y_pred_xgb_garage_bin), annot=True, fmt='d', cmap='Greens')
+plt.title('Confusion Matrix - XGBoost (Binary - Garage Door)')
+plt.show()
+
+#Bar plot comparison 
+labels = ['Accuracy', 'Precision', 'Recall', 'F1-score']
+
+rf_scores = [
+    accuracy_score(y_test_garage_bin, y_pred_rf_garage_bin),
+    precision_score(y_test_garage_bin, y_pred_rf_garage_bin, zero_division=0),
+    recall_score(y_test_garage_bin, y_pred_rf_garage_bin, zero_division=0),
+    f1_score(y_test_garage_bin, y_pred_rf_garage_bin, zero_division=0)
+]
+
+xgb_scores = [
+    accuracy_score(y_test_garage_bin, y_pred_xgb_garage_bin),
+    precision_score(y_test_garage_bin, y_pred_xgb_garage_bin, zero_division=0),
+    recall_score(y_test_garage_bin, y_pred_xgb_garage_bin, zero_division=0),
+    f1_score(y_test_garage_bin, y_pred_xgb_garage_bin, zero_division=0)
+]
+
+x = np.arange(len(labels))
+width = 0.3
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, rf_scores, width, label='Random Forest')
+rects2 = ax.bar(x + width/2, xgb_scores, width, label='XGBoost')
+
+ax.set_ylabel('Score')
+ax.set_title('Binary Classification Metrics (Garage Door Device)')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+
+for rects in [rects1, rects2]:
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(f'{height:.2f}', xy=(rect.get_x() + rect.get_width()/2, height),
+                    xytext=(0,3), textcoords="offset points", ha='center', va='bottom')
+
+fig.tight_layout()
+plt.show()
+
+
+#Multi-Class Classification: 
+
+#Remapping Multi-Class Labels
+def map_attack_types(label):
+    if label == 'normal':
+        return 'normal'
+    elif label in ['ddos', 'xss', 'scanning']:
+        return 'minor_attack'
+    else:
+        return 'severe_attack'
+
+y_train_garage_multi_remapped = y_train_garage_multi.map(map_attack_types)
+y_test_garage_multi_remapped = y_test_garage_multi.map(map_attack_types)
+y_val_garage_multi_remapped = y_val_garage_multi.map(map_attack_types)
+
+print("\nUnique labels after remapping:")
+print(y_train_garage_multi_remapped.unique())
+
+#Applying SMOTE on Remapped Data
+print("\nApplying SMOTE to Multi-Class Remapped Training Data...")
+smote_multi_remapped = SMOTE(random_state=42)
+X_train_garage_multi_smote, y_train_garage_multi_smote = smote_multi_remapped.fit_resample(
+    X_train_garage_multi, y_train_garage_multi_remapped)
+
+print("New class distribution after SMOTE (Remapped Multi-Class):")
+print(y_train_garage_multi_smote.value_counts())
+
+#Encode labels for XGBoost
+le = LabelEncoder()
+y_train_garage_multi_smote_encoded = le.fit_transform(y_train_garage_multi_smote)
+y_test_garage_multi_encoded = le.transform(y_test_garage_multi_remapped)
+
+#Train Models
+print("\n===== Multi-Class Classification (Garage Door Device - Remapped) =====")
+
+#RF
+rf_garage_multi_remapped = RandomForestClassifier(random_state=42)
+rf_garage_multi_remapped.fit(X_train_garage_multi_smote, y_train_garage_multi_smote)
+y_pred_rf_garage_multi_remapped = rf_garage_multi_remapped.predict(X_test_garage_multi)
+
+# --- XGBoost ---
+xgb_garage_multi_remapped = XGBClassifier(objective='multi:softmax', num_class=3, eval_metric='mlogloss', random_state=42)
+xgb_garage_multi_remapped.fit(X_train_garage_multi_smote, y_train_garage_multi_smote_encoded)
+y_pred_xgb_garage_multi_remapped = xgb_garage_multi_remapped.predict(X_test_garage_multi)
+
+# Evaluate Models
+#RF Evaluation 
+print("\n--- Random Forest (Multi-Class Remapped) ---")
+print(classification_report(y_test_garage_multi_remapped, y_pred_rf_garage_multi_remapped, zero_division=0))
+
+plt.figure(figsize=(6,4))
+sns.heatmap(confusion_matrix(y_test_garage_multi_remapped, y_pred_rf_garage_multi_remapped), annot=True, fmt='d', cmap='Blues')
+plt.title('Confusion Matrix - Random Forest (Garage Door - Remapped)')
+plt.show()
+
+#XGBoost Evaluation 
+print("\n--- XGBoost (Multi-Class Remapped) ---")
+print(classification_report(y_test_garage_multi_encoded, y_pred_xgb_garage_multi_remapped, zero_division=0))
+
+plt.figure(figsize=(6,4))
+sns.heatmap(confusion_matrix(y_test_garage_multi_encoded, y_pred_xgb_garage_multi_remapped), annot=True, fmt='d', cmap='Greens')
+plt.title('Confusion Matrix - XGBoost (Garage Door - Remapped)')
+plt.show()
+
+#Classification reports
+report_rf_remapped = classification_report(y_test_garage_multi_remapped, y_pred_rf_garage_multi_remapped, output_dict=True, zero_division=0)
+report_xgb_remapped = classification_report(y_test_garage_multi_encoded, y_pred_xgb_garage_multi_remapped, output_dict=True, zero_division=0)
+
+#Class labels
+class_labels = ['minor_attack', 'normal', 'severe_attack']
+
+# Extract Scores
+def extract_scores(report, class_labels):
+    precisions = []
+    recalls = []
+    f1s = []
+    for label in class_labels:
+        precisions.append(report[label]['precision'] * 100)
+        recalls.append(report[label]['recall'] * 100)
+        f1s.append(report[label]['f1-score'] * 100)
+    return precisions, recalls, f1s
+
+# Get Scores
+precisions_rf, recalls_rf, f1s_rf = extract_scores(report_rf_remapped, class_labels)
+precisions_xgb, recalls_xgb, f1s_xgb = extract_scores(report_xgb_remapped, ['0', '1', '2'])
+
+# Plotting
+def plot_per_class_metrics(class_labels, precisions, recalls, f1s, model_name):
+    x = np.arange(len(class_labels))
+    width = 0.2
+
+    fig, ax = plt.subplots(figsize=(10,5))
+    rects1 = ax.bar(x - width, precisions, width, label='Precision')
+    rects2 = ax.bar(x, recalls, width, label='Recall')
+    rects3 = ax.bar(x + width, f1s, width, label='F1-Score')
+
+    ax.set_ylabel('Score (%)')
+    ax.set_title(f'Per-Class Metrics ({model_name})')
+    ax.set_xticks(x)
+    ax.set_xticklabels(class_labels, rotation=45)
+    ax.set_ylim(0, 110)
+    ax.legend()
+
+    # Annotate bars
+    for rects in [rects1, rects2, rects3]:
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f'{height:.1f}%', 
+                        xy=(rect.get_x() + rect.get_width()/2, height),
+                        xytext=(0, 3),
+                        textcoords="offset points",
+                        ha='center', va='bottom')
+
+    plt.tight_layout()
+    plt.show()
+
+# Random Forest per class
+plot_per_class_metrics(class_labels, precisions_rf, recalls_rf, f1s_rf, model_name="Random Forest (Garage Door)")
+
+# XGBoost per class
+plot_per_class_metrics(['minor_attack', 'normal', 'severe_attack'], precisions_xgb, recalls_xgb, f1s_xgb, model_name="XGBoost (Garage Door)")
+
+
+#Part 4: Validation: 
 
