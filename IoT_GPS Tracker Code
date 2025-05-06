@@ -55,8 +55,8 @@ print(f"Binary - Train: {X_train_bin.shape}, Test: {X_test_bin.shape}, Val: {X_v
 print(f"Multi  - Train: {X_train_multi.shape}, Test: {X_test_multi.shape}, Val: {X_val_multi.shape}")
 
 
-#Part 2 and 3: 
-#Binary Classification: 
+#Part 2:  AI model development and #Part 3: Model evaluation
+#Binary Classification Code: 
 print("\n===== Binary Classification (GPS Tracker device) =====")
 
 #Applying SMOTE
@@ -119,7 +119,7 @@ plt.tight_layout()
 plt.show()
 
 
-#Multi-Classification: 
+#Multi-Classification Code: 
 print("\n===== Multi-Classification (GPS Tracker) =====")
 
 # Encode labels
@@ -196,5 +196,5 @@ plot_class_metrics(class_labels, prec_rf, rec_rf, f1_rf, "Random Forest")
 plot_class_metrics(class_labels, prec_xgb, rec_xgb, f1_xgb, "XGBoost")
 
 
-#Part 4: Validation: 
+#Part 4: Validation Code: 
 
