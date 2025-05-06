@@ -69,8 +69,8 @@ print(f"Multi-class - Train: {X_train_fridge_multi.shape}, Test: {X_test_fridge_
 
 
 
-#Part 2 and 3: 
-#Binary Classification: 
+#Part 2:  AI model development and #Part 3: Model evaluation
+#Binary Classification Code:  
 #Applying SMOTE 
 smote = SMOTE(random_state=42)
 X_train_fridge_bin_smote, y_train_fridge_bin_smote = smote.fit_resample(X_train_fridge_bin, y_train_fridge_bin)
@@ -148,7 +148,7 @@ fig.tight_layout()
 plt.show()
 
 
-#Multi-Classification: 
+#Multi-Classification Code: 
 print("\n===== MULTI-CLASS CLASSIFICATION (Fridge Device) =====")
 
 #Split 
