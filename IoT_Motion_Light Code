@@ -63,15 +63,14 @@ print(f"\nbinary - train: {X_train_motion_bin.shape}, test: {X_test_motion_bin.s
 print(f"multi-class - train: {X_train_motion_multi.shape}, test: {X_test_motion_multi.shape}, validation: {X_val_motion_multi.shape}")
 
 
-#Part 2 and 3: 
+#Part 2:  AI model development and #Part 3: Model evaluation
+
 #Binary Classification Code: 
 #Applying SMOTE to the training set
 smote = SMOTE(random_state=42)
 X_train_motion_bin_smote, y_train_motion_bin_smote = smote.fit_resample(X_train_motion_bin, y_train_motion_bin)
 
-
 print("\n===== Binary Classification =====")
-
 #RF
 rf_bin = RandomForestClassifier(random_state=42)
 rf_bin.fit(X_train_motion_bin_smote, y_train_motion_bin_smote)
@@ -135,7 +134,7 @@ plt.tight_layout()
 plt.show()
 
 
-#Multi-Class Classification includes the remapping: 
+#Multi-Class Classification includes the remapping Code: 
 #Remapping Attack Types
 def map_attack_types(label):
     if label == 'normal':
@@ -169,12 +168,12 @@ y_test_motion_multi_encoded = le.transform(y_test_motion_multi_remapped)
 #Train Models
 print("\n===== Multi-Class Classification (Motion_Light - Remapped) =====")
 
-# Random Forest
+#RF
 rf_motion_multi = RandomForestClassifier(random_state=42)
 rf_motion_multi.fit(X_train_motion_multi_smote, y_train_motion_multi_smote)
 y_pred_rf_motion_multi = rf_motion_multi.predict(X_test_motion_multi)
 
-# XGBoost
+#XGBoost
 xgb_motion_multi = XGBClassifier(objective='multi:softmax', num_class=3, eval_metric='mlogloss', random_state=42)
 xgb_motion_multi.fit(X_train_motion_multi_smote, y_train_motion_multi_smote_encoded)
 y_pred_xgb_motion_multi = xgb_motion_multi.predict(X_test_motion_multi)
@@ -198,7 +197,6 @@ plt.title('Confusion Matrix - XGBoost (Motion_Light - Remapped)')
 plt.show()
 
 #Per-Class Bar Charts
-
 report_rf = classification_report(y_test_motion_multi_remapped, y_pred_rf_motion_multi, output_dict=True, zero_division=0)
 report_xgb = classification_report(y_test_motion_multi_encoded, y_pred_xgb_motion_multi, output_dict=True, zero_division=0)
 
@@ -245,6 +243,8 @@ plot_per_class_metrics(class_labels, prec_rf, rec_rf, f1_rf, "Random Forest (Mot
 #XGB Plot
 plot_per_class_metrics(class_labels, prec_xgb, rec_xgb, f1_xgb, "XGBoost (Motion_Light)")
 
+
+#Part 4: Validation Code: 
 
 #Part 4: Validation: 
 
