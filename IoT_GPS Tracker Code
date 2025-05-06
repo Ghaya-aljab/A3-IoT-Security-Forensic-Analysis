@@ -1,1 +1,200 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import precision_recall_fscore_support
+
+
+#Part 1: Preprocessing Code: 
+#Loading the dataset
+print("Loading IoT_GPS_Tracker.csv.xlsx...")
+df_gps = pd.read_excel('IoT_GPS_Tracker.csv.xlsx')
+
+#Adding device type and prediction columns
+df_gps['device_type'] = 'GPS_Tracker'
+df_gps['prediction'] = df_gps['type']
+
+#Before Preprocessing 
+print("\n--- Before Preprocessing ---")
+print(df_gps.head())
+print("\nMissing values:\n", df_gps.isna().sum())
+
+#Dropping unused and missing
+df_gps = df_gps.drop(columns=['date', 'time', 'type'], errors='ignore')
+df_gps = df_gps.dropna()
+
+#Features and labels
+features = ['latitude', 'longitude']
+X = df_gps[features]
+y_binary = df_gps['label']
+y_multi = df_gps['prediction']
+
+#Normalizing features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+print("\n--- After Preprocessing ---")
+print(pd.DataFrame(X_scaled, columns=features).head())
+
+#Splits
+X_temp_bin, X_val_bin, y_temp_bin, y_val_bin = train_test_split(X_scaled, y_binary, test_size=0.10, random_state=42)
+X_train_bin, X_test_bin, y_train_bin, y_test_bin = train_test_split(X_temp_bin, y_temp_bin, test_size=2/9, random_state=42)
+
+X_temp_multi, X_val_multi, y_temp_multi, y_val_multi = train_test_split(X_scaled, y_multi, test_size=0.10, random_state=42)
+X_train_multi, X_test_multi, y_train_multi, y_test_multi = train_test_split(X_temp_multi, y_temp_multi, test_size=2/9, random_state=42)
+
+print("\nPreprocessing complete for GPS Tracking ---")
+print(f"Binary - Train: {X_train_bin.shape}, Test: {X_test_bin.shape}, Val: {X_val_bin.shape}")
+print(f"Multi  - Train: {X_train_multi.shape}, Test: {X_test_multi.shape}, Val: {X_val_multi.shape}")
+
+
+#Part 2 and 3: 
+#Binary Classification: 
+print("\n===== Binary Classification (GPS Tracker device) =====")
+
+#Applying SMOTE
+smote = SMOTE(random_state=42)
+X_train_bin_smote, y_train_bin_smote = smote.fit_resample(X_train_bin, y_train_bin)
+
+#RF
+rf_bin = RandomForestClassifier(random_state=42)
+rf_bin.fit(X_train_bin_smote, y_train_bin_smote)
+y_pred_rf_bin = rf_bin.predict(X_test_bin)
+
+#XGBoost
+xgb_bin = XGBClassifier(eval_metric='logloss', random_state=42)
+xgb_bin.fit(X_train_bin_smote, y_train_bin_smote)
+y_pred_xgb_bin = xgb_bin.predict(X_test_bin)
+
+#Evaluation of RF
+print("\n--- Random Forest ---")
+print(classification_report(y_test_bin, y_pred_rf_bin, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_bin, y_pred_rf_bin), annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix - RF (Binary)")
+plt.show()
+
+# Evaluation of XGB
+print("\n--- XGBoost ---")
+print(classification_report(y_test_bin, y_pred_xgb_bin, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_bin, y_pred_xgb_bin), annot=True, fmt='d', cmap='Greens')
+plt.title("Confusion Matrix - XGB (Binary)")
+plt.show()
+
+#Bar chart comparison
+labels = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+rf_scores = [accuracy_score(y_test_bin, y_pred_rf_bin),
+             precision_score(y_test_bin, y_pred_rf_bin),
+             recall_score(y_test_bin, y_pred_rf_bin),
+             f1_score(y_test_bin, y_pred_rf_bin)]
+xgb_scores = [accuracy_score(y_test_bin, y_pred_xgb_bin),
+              precision_score(y_test_bin, y_pred_xgb_bin),
+              recall_score(y_test_bin, y_pred_xgb_bin),
+              f1_score(y_test_bin, y_pred_xgb_bin)]
+
+x = np.arange(len(labels))
+width = 0.3
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, rf_scores, width, label='Random Forest')
+rects2 = ax.bar(x + width/2, xgb_scores, width, label='XGBoost')
+ax.set_ylabel('Score')
+ax.set_title('Binary Classification comparison (GPS Tracker)')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+
+for rects in [rects1, rects2]:
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(f'{height:.2f}', xy=(rect.get_x() + rect.get_width()/2, height),
+                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+plt.tight_layout()
+plt.show()
+
+
+#Multi-Classification: 
+print("\n===== Multi-Classification (GPS Tracker) =====")
+
+# Encode labels
+le = LabelEncoder()
+y_train_multi_encoded = le.fit_transform(y_train_multi)
+y_test_multi_encoded = le.transform(y_test_multi)
+
+# Apply SMOTE
+X_train_multi_smote, y_train_multi_smote = SMOTE(random_state=42).fit_resample(X_train_multi, y_train_multi)
+y_train_multi_smote_encoded = le.transform(y_train_multi_smote)
+
+# Train models
+rf_multi = RandomForestClassifier(random_state=42)
+rf_multi.fit(X_train_multi_smote, y_train_multi_smote)
+y_pred_rf_multi = rf_multi.predict(X_test_multi)
+
+xgb_multi = XGBClassifier(eval_metric='mlogloss', random_state=42)
+xgb_multi.fit(X_train_multi_smote, y_train_multi_smote_encoded)
+y_pred_xgb_multi = xgb_multi.predict(X_test_multi)
+
+# Classification reports
+print("\n--- Random Forest ---")
+print(classification_report(y_test_multi, y_pred_rf_multi, zero_division=0))
+#Plotting confusion matrices
+
+plot_confusion_matrix(y_test_multi, y_pred_rf_multi, "Random Forest")
+
+
+print("\n--- XGBoost ---")
+print(classification_report(y_test_multi_encoded, y_pred_xgb_multi, zero_division=0))
+
+# Confusion matrix function
+def plot_confusion_matrix(y_true, y_pred, model_name):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(f'Confusion Matrix - {model_name} (Multi-Class)')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.tight_layout()
+    plt.show()
+
+#Plotting confusion matrices
+plot_confusion_matrix(y_test_multi_encoded, y_pred_xgb_multi, "XGBoost")
+
+# Per-class metrics
+class_labels = le.classes_
+prec_rf, rec_rf, f1_rf, _ = precision_recall_fscore_support(y_test_multi, y_pred_rf_multi, labels=class_labels, average=None, zero_division=0)
+prec_xgb, rec_xgb, f1_xgb, _ = precision_recall_fscore_support(y_test_multi_encoded, y_pred_xgb_multi, labels=np.unique(y_test_multi_encoded), average=None, zero_division=0)
+
+# Plot per-class metrics
+def plot_class_metrics(class_labels, precisions, recalls, f1s, model_name):
+    x = np.arange(len(class_labels))
+    width = 0.2
+    fig, ax = plt.subplots(figsize=(12, 5))
+    rects1 = ax.bar(x - width, precisions * 100, width, label='Precision')
+    rects2 = ax.bar(x, recalls * 100, width, label='Recall')
+    rects3 = ax.bar(x + width, f1s * 100, width, label='F1-Score')
+    ax.set_ylabel('Score (%)')
+    ax.set_title(f'Per-Class Metrics ({model_name}) - GPS Tracker')
+    ax.set_xticks(x)
+    ax.set_xticklabels(class_labels, rotation=45)
+    ax.set_ylim(0, 110)
+    ax.legend()
+    for rects in [rects1, rects2, rects3]:
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f'{height:.1f}%', xy=(rect.get_x() + rect.get_width()/2, height),
+                        xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+    plt.tight_layout()
+    plt.show()
+
+plot_class_metrics(class_labels, prec_rf, rec_rf, f1_rf, "Random Forest")
+plot_class_metrics(class_labels, prec_xgb, rec_xgb, f1_xgb, "XGBoost")
+
+
+#Part 4: Validation: 
 
