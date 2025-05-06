@@ -64,8 +64,9 @@ print(f"Binary - Train: {X_train_modbus_bin.shape}, Test: {X_test_modbus_bin.sha
 print(f"Multi-class - Train: {X_train_modbus_multi.shape}, Test: {X_test_modbus_multi.shape}, Validation: {X_val_modbus_multi.shape}")
 
 
-#Part 2 and 3: 
-#Binary Classification: 
+#Part 2:  AI model development and #Part 3: Model evaluation
+
+#Binary Classification Code: 
 print("\n===== Binary Classification =====")
 
 #Applying SMOTE
@@ -132,7 +133,7 @@ plt.tight_layout()
 plt.show()
 
 
-#Multi-Class Classification: 
+#Multi-Class Classification Code: 
 print("\n===== Multi-Class Classification (Modbus Device) =====")
 
 #Encode labels
@@ -209,5 +210,5 @@ plot_class_metrics(class_labels, prec_rf_class, recall_rf_class, f1_rf_class, "R
 plot_class_metrics(class_labels, prec_xgb_class, recall_xgb_class, f1_xgb_class, "XGBoost")
 
 
-#Part 4: Validation 
+#Part 4: Validation Code: 
 
