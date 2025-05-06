@@ -12,7 +12,7 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
 from imblearn.over_sampling import SMOTE
 from sklearn.metrics import precision_recall_fscore_support
 
-#Part 1: preprocessing code: 
+#Part 1: Preprocessing Code: 
 #Loading dataset
 print("Loading IoT_Weather.csv.xlsx...")
 df_weather = pd.read_excel("IoT_Weather.csv.xlsx")
@@ -68,7 +68,8 @@ X_test_multi, X_val_multi, y_test_multi, y_val_multi = train_test_split(
 print(f"\nBinary - Train: {X_train_bin.shape}, Test: {X_test_bin.shape}, Validation: {X_val_bin.shape}")
 print(f"Multi-class - Train: {X_train_multi.shape}, Test: {X_test_multi.shape}, Validation: {X_val_multi.shape}")
 
-#Part 2 and 3: 
+
+#Part 2:  AI model development and #Part 3: Model evaluation
 #Binary Classification Code: 
 print("\n===== Binary Classification (Weather Device with SMOTE) =====")
 
@@ -240,4 +241,4 @@ xgb_class_names = [category_map[i] for i in np.unique(y_test_multi_encoded)]
 plot_class_metrics(xgb_class_names, prec_xgb_class, recall_xgb_class, f1_xgb_class, "XGBoost")
 
 
-#Part 4: Validation:
+#Part 4: Validation Code:
