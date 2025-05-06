@@ -67,7 +67,7 @@ print(f"Binary Classification - Train: {X_train_bin.shape}, Test: {X_test_bin.sh
 print(f"Multi-class Classification - Train: {X_train_multi.shape}, Test: {X_test_multi.shape}, Validation: {X_val_multi.shape}")
 
 
-#Part 2 and 3: 
+#Part 2:  AI model development and #Part 3: Model evaluation
 #Binary Classification Code: 
 print("\n===== Binary Classification (Thermostat Device) =====")
 
@@ -142,7 +142,7 @@ plt.show()
 
 
 
-#Multi-Class Classification: 
+#Multi-Class Classification Code: 
 print("\n===== Multi-Class Classification (Thermostat Device) =====")
 
 #Applying SMOTE 
@@ -236,4 +236,4 @@ plot_per_class_metrics(class_labels, prec_rf, rec_rf, f1_rf, "Random Forest (The
 plot_per_class_metrics(class_labels, prec_xgb, rec_xgb, f1_xgb, "XGBoost (Thermostat)")
 
 
-#Part 4: Validation: 
+#Part 4: Validation Code: 
