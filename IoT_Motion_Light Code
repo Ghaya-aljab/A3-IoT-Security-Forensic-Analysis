@@ -1,1 +1,250 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+from imblearn.over_sampling import SMOTE
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+
+#Part 1: Preprocessing Code:
+#Loading the  dataset
+print("loading IoT_Motion_Light.csv.xlsx...")
+df_motion = pd.read_excel("IoT_Motion_Light.csv.xlsx")
+
+#Adding device type and prediction columns
+df_motion['device_type'] = 'motion_light'
+df_motion['prediction'] = df_motion['type']
+
+#Before Preprocessing
+print("\n--- Before Preprocessing ---")
+print(df_motion.head())
+print("missing values per column:\n", df_motion.isna().sum())
+
+#Dropping unused columns
+df_motion = df_motion.drop(columns=['date', 'time'], errors='ignore')
+df_motion = df_motion.dropna()
+
+#Feature selection and conversion
+df_motion['motion_status'] = df_motion['motion_status'].replace({'on': 1, 'off': 0}).astype(int)
+df_motion['light_status'] = df_motion['light_status'].replace({'on': 1, 'off': 0}).astype(int)
+
+features = ['motion_status', 'light_status']
+X_motion = df_motion[features]
+y_motion_binary = df_motion['label']
+y_motion_multi = df_motion['prediction']
+
+#Normalizing features
+scaler = StandardScaler()
+X_motion_scaled = scaler.fit_transform(X_motion)
+
+#After Preprocessing
+print("\n--- After Preprocessing ---")
+print(pd.DataFrame(X_motion_scaled, columns=features).head())
+
+#Split for binary 
+X_temp_motion_bin, X_val_motion_bin, y_temp_motion_bin, y_val_motion_bin = train_test_split(
+    X_motion_scaled, y_motion_binary, test_size=0.10, random_state=42, stratify=y_motion_binary)
+
+X_train_motion_bin, X_test_motion_bin, y_train_motion_bin, y_test_motion_bin = train_test_split(
+    X_temp_motion_bin, y_temp_motion_bin, test_size=2/9, random_state=42, stratify=y_temp_motion_bin)
+
+#Split for multi-class 
+X_temp_motion_multi, X_val_motion_multi, y_temp_motion_multi, y_val_motion_multi = train_test_split(
+    X_motion_scaled, y_motion_multi, test_size=0.10, random_state=42, stratify=y_motion_multi)
+
+X_train_motion_multi, X_test_motion_multi, y_train_motion_multi, y_test_motion_multi = train_test_split(
+    X_temp_motion_multi, y_temp_motion_multi, test_size=2/9, random_state=42, stratify=y_temp_motion_multi)
+
+print(f"\nbinary - train: {X_train_motion_bin.shape}, test: {X_test_motion_bin.shape}, validation: {X_val_motion_bin.shape}")
+print(f"multi-class - train: {X_train_motion_multi.shape}, test: {X_test_motion_multi.shape}, validation: {X_val_motion_multi.shape}")
+
+
+#Part 2 and 3: 
+#Binary Classification Code: 
+#Applying SMOTE to the training set
+smote = SMOTE(random_state=42)
+X_train_motion_bin_smote, y_train_motion_bin_smote = smote.fit_resample(X_train_motion_bin, y_train_motion_bin)
+
+
+print("\n===== Binary Classification =====")
+
+#RF
+rf_bin = RandomForestClassifier(random_state=42)
+rf_bin.fit(X_train_motion_bin_smote, y_train_motion_bin_smote)
+y_pred_rf_bin = rf_bin.predict(X_test_motion_bin)
+
+#XGBoost
+xgb_bin = XGBClassifier(eval_metric='logloss', random_state=42)
+xgb_bin.fit(X_train_motion_bin_smote, y_train_motion_bin_smote)
+y_pred_xgb_bin = xgb_bin.predict(X_test_motion_bin)
+
+#Evaluation Metrics 
+#RF
+acc_rf = accuracy_score(y_test_motion_bin, y_pred_rf_bin)
+prec_rf = precision_score(y_test_motion_bin, y_pred_rf_bin)
+recall_rf = recall_score(y_test_motion_bin, y_pred_rf_bin)
+f1_rf = f1_score(y_test_motion_bin, y_pred_rf_bin)
+
+print("\n--- Random Forest (Binary with SMOTE) ---")
+print(classification_report(y_test_motion_bin, y_pred_rf_bin))
+sns.heatmap(confusion_matrix(y_test_motion_bin, y_pred_rf_bin), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest Binary Confusion Matrix (Motion_Light with SMOTE)")
+plt.show()
+
+#XGBoost
+acc_xgb = accuracy_score(y_test_motion_bin, y_pred_xgb_bin)
+prec_xgb = precision_score(y_test_motion_bin, y_pred_xgb_bin)
+recall_xgb = recall_score(y_test_motion_bin, y_pred_xgb_bin)
+f1_xgb = f1_score(y_test_motion_bin, y_pred_xgb_bin)
+
+print("\n--- XGBoost (Binary with SMOTE) ---")
+print(classification_report(y_test_motion_bin, y_pred_xgb_bin))
+sns.heatmap(confusion_matrix(y_test_motion_bin, y_pred_xgb_bin), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost Binary Confusion Matrix (Motion_Light with SMOTE)")
+plt.show()
+
+#Bar Chart for Binary Metrics
+labels = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+rf_scores = [acc_rf, prec_rf, recall_rf, f1_rf]
+xgb_scores = [acc_xgb, prec_xgb, recall_xgb, f1_xgb]
+
+x = np.arange(len(labels))
+width = 0.3
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, rf_scores, width, label='Random Forest')
+rects2 = ax.bar(x + width/2, xgb_scores, width, label='XGBoost')
+
+ax.set_ylabel('Score')
+ax.set_title('Binary Classification Metrics (Motion_Light with SMOTE)')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+
+for rects in [rects1, rects2]:
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(f'{height:.2f}', xy=(rect.get_x() + rect.get_width()/2, height),
+                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+
+plt.tight_layout()
+plt.show()
+
+
+#Multi-Class Classification includes the remapping: 
+#Remapping Attack Types
+def map_attack_types(label):
+    if label == 'normal':
+        return 'normal'
+    elif label in ['ddos', 'backdoor', 'ransomware']:
+        return 'severe_attack'
+    else:
+        return 'minor_attack'
+
+y_train_motion_multi_remapped = y_train_motion_multi.map(map_attack_types)
+y_test_motion_multi_remapped = y_test_motion_multi.map(map_attack_types)
+y_val_motion_multi_remapped = y_val_motion_multi.map(map_attack_types)
+
+print("\nUnique labels after remapping:")
+print(y_train_motion_multi_remapped.unique())
+
+#Applying SMOTE
+print("\nApplying SMOTE to Remapped Multi-Class Training Data...")
+smote_multi = SMOTE(random_state=42)
+X_train_motion_multi_smote, y_train_motion_multi_smote = smote_multi.fit_resample(
+    X_train_motion_multi, y_train_motion_multi_remapped)
+
+print("New class distribution after SMOTE:")
+print(y_train_motion_multi_smote.value_counts())
+
+#Encode labels for XGBoost
+le = LabelEncoder()
+y_train_motion_multi_smote_encoded = le.fit_transform(y_train_motion_multi_smote)
+y_test_motion_multi_encoded = le.transform(y_test_motion_multi_remapped)
+
+#Train Models
+print("\n===== Multi-Class Classification (Motion_Light - Remapped) =====")
+
+# Random Forest
+rf_motion_multi = RandomForestClassifier(random_state=42)
+rf_motion_multi.fit(X_train_motion_multi_smote, y_train_motion_multi_smote)
+y_pred_rf_motion_multi = rf_motion_multi.predict(X_test_motion_multi)
+
+# XGBoost
+xgb_motion_multi = XGBClassifier(objective='multi:softmax', num_class=3, eval_metric='mlogloss', random_state=42)
+xgb_motion_multi.fit(X_train_motion_multi_smote, y_train_motion_multi_smote_encoded)
+y_pred_xgb_motion_multi = xgb_motion_multi.predict(X_test_motion_multi)
+
+#Evaluate Models
+
+#RF
+print("\n--- Random Forest (Multi-Class Remapped) ---")
+print(classification_report(y_test_motion_multi_remapped, y_pred_rf_motion_multi, zero_division=0))
+plt.figure(figsize=(6,4))
+sns.heatmap(confusion_matrix(y_test_motion_multi_remapped, y_pred_rf_motion_multi), annot=True, fmt='d', cmap='Blues')
+plt.title('Confusion Matrix - Random Forest (Motion_Light - Remapped)')
+plt.show()
+
+#XGBoost
+print("\n--- XGBoost (Multi-Class Remapped) ---")
+print(classification_report(y_test_motion_multi_encoded, y_pred_xgb_motion_multi, zero_division=0))
+plt.figure(figsize=(6,4))
+sns.heatmap(confusion_matrix(y_test_motion_multi_encoded, y_pred_xgb_motion_multi), annot=True, fmt='d', cmap='Greens')
+plt.title('Confusion Matrix - XGBoost (Motion_Light - Remapped)')
+plt.show()
+
+#Per-Class Bar Charts
+
+report_rf = classification_report(y_test_motion_multi_remapped, y_pred_rf_motion_multi, output_dict=True, zero_division=0)
+report_xgb = classification_report(y_test_motion_multi_encoded, y_pred_xgb_motion_multi, output_dict=True, zero_division=0)
+
+class_labels = ['minor_attack', 'normal', 'severe_attack']
+
+def extract_scores(report, class_labels):
+    precisions, recalls, f1s = [], [], []
+    for label in class_labels:
+        precisions.append(report[label]['precision'] * 100)
+        recalls.append(report[label]['recall'] * 100)
+        f1s.append(report[label]['f1-score'] * 100)
+    return precisions, recalls, f1s
+
+#RF
+prec_rf, rec_rf, f1_rf = extract_scores(report_rf, class_labels)
+#XGB
+prec_xgb, rec_xgb, f1_xgb = extract_scores(report_xgb, ['0', '1', '2'])
+
+#Plotting
+def plot_per_class_metrics(class_labels, precisions, recalls, f1s, model_name):
+    x = np.arange(len(class_labels))
+    width = 0.2
+    fig, ax = plt.subplots(figsize=(10,5))
+    rects1 = ax.bar(x - width, precisions, width, label='Precision')
+    rects2 = ax.bar(x, recalls, width, label='Recall')
+    rects3 = ax.bar(x + width, f1s, width, label='F1-Score')
+    ax.set_ylabel('Score (%)')
+    ax.set_title(f'Per-Class Metrics ({model_name})')
+    ax.set_xticks(x)
+    ax.set_xticklabels(class_labels, rotation=45)
+    ax.set_ylim(0, 110)
+    ax.legend()
+    for rects in [rects1, rects2, rects3]:
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f'{height:.1f}%', xy=(rect.get_x() + rect.get_width()/2, height),
+                        xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+    plt.tight_layout()
+    plt.show()
+
+#RF Plot
+plot_per_class_metrics(class_labels, prec_rf, rec_rf, f1_rf, "Random Forest (Motion_Light)")
+
+#XGB Plot
+plot_per_class_metrics(class_labels, prec_xgb, rec_xgb, f1_xgb, "XGBoost (Motion_Light)")
+
+
+#Part 4: Validation: 
 
