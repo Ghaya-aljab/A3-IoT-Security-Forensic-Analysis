@@ -1,1 +1,239 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, confusion_matrix
+from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report, confusion_matrix, precision_recall_fscore_support
 
+
+#Part 1: Preprocessing Code
+#Loading Dataset
+print("Loading IoT_Thermostat.csv.xlsx...")
+df_thermostat = pd.read_excel('IoT_Thermostat.csv.xlsx')
+
+# Add device type and prediction columns
+df_thermostat['device_type'] = 'Thermostat'
+df_thermostat['prediction'] = df_thermostat['type']
+
+#Before Preprocessing
+print("\n--- Before Preprocessing ---")
+print(df_thermostat.head())
+
+#Dropping unused columns
+df_thermostat = df_thermostat.drop(columns=['date', 'time', 'type'])
+
+#Drop missing values
+df_thermostat = df_thermostat.dropna()
+
+#Select features and targets
+features = ['current_temperature', 'thermostat_status']
+X = df_thermostat[features]
+
+y_binary = df_thermostat['label']          
+y_multiclass = df_thermostat['prediction'] 
+
+# Normalize features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+#Show normalized features
+X_scaled_df = pd.DataFrame(X_scaled, columns=features)
+print("\n--- After Preprocessing ---")
+print(X_scaled_df.head())
+
+# Updated Train/Test/Validation Splitting
+#For Binary classification
+X_temp_bin, X_val_bin, y_temp_bin, y_val_bin = train_test_split(
+    X_scaled, y_binary, test_size=0.10, random_state=42)
+
+X_train_bin, X_test_bin, y_train_bin, y_test_bin = train_test_split(
+    X_temp_bin, y_temp_bin, test_size=2/9, random_state=42)
+
+#For Multi-class classification
+X_temp_multi, X_val_multi, y_temp_multi, y_val_multi = train_test_split(
+    X_scaled, y_multiclass, test_size=0.10, random_state=42)
+
+X_train_multi, X_test_multi, y_train_multi, y_test_multi = train_test_split(
+    X_temp_multi, y_temp_multi, test_size=2/9, random_state=42)
+
+print("\nPreprocessing complete for ThermoStat")
+print(f"Binary Classification - Train: {X_train_bin.shape}, Test: {X_test_bin.shape}, Validation: {X_val_bin.shape}")
+print(f"Multi-class Classification - Train: {X_train_multi.shape}, Test: {X_test_multi.shape}, Validation: {X_val_multi.shape}")
+
+
+#Part 2 and 3: 
+#Binary Classification Code: 
+print("\n===== Binary Classification (Thermostat Device) =====")
+
+#Applying SMOTE
+print("\nApplying SMOTE to Binary training data...")
+smote = SMOTE(random_state=42)
+X_train_thermostat_bin_smote, y_train_thermostat_bin_smote = smote.fit_resample(X_train_bin, y_train_bin)
+
+print("\nNew class distribution after SMOTE:")
+print(pd.Series(y_train_thermostat_bin_smote).value_counts())
+
+#RF
+rf_bin_thermostat = RandomForestClassifier(random_state=42)
+rf_bin_thermostat.fit(X_train_thermostat_bin_smote, y_train_thermostat_bin_smote)
+y_pred_rf_bin_thermostat = rf_bin_thermostat.predict(X_test_bin)
+
+print("\n--- Random Forest (Binary) ---")
+print(classification_report(y_test_bin, y_pred_rf_bin_thermostat, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_bin, y_pred_rf_bin_thermostat), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest - Confusion Matrix (Thermostat Binary)")
+plt.show()
+
+#XGBoost 
+xgb_bin_thermostat = XGBClassifier(eval_metric='logloss', random_state=42)
+xgb_bin_thermostat.fit(X_train_thermostat_bin_smote, y_train_thermostat_bin_smote)
+y_pred_xgb_bin_thermostat = xgb_bin_thermostat.predict(X_test_bin)
+
+print("\n--- XGBoost (Binary) ---")
+print(classification_report(y_test_bin, y_pred_xgb_bin_thermostat, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_bin, y_pred_xgb_bin_thermostat), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost - Confusion Matrix (Thermostat Binary)")
+plt.show()
+
+
+#Comparison Bar Chart 
+labels = ['Accuracy', 'Precision', 'Recall', 'F1-score']
+rf_scores = [
+    accuracy_score(y_test_bin, y_pred_rf_bin_thermostat),
+    precision_score(y_test_bin, y_pred_rf_bin_thermostat, zero_division=0),
+    recall_score(y_test_bin, y_pred_rf_bin_thermostat, zero_division=0),
+    f1_score(y_test_bin, y_pred_rf_bin_thermostat, zero_division=0)
+]
+
+xgb_scores = [
+    accuracy_score(y_test_bin, y_pred_xgb_bin_thermostat),
+    precision_score(y_test_bin, y_pred_xgb_bin_thermostat, zero_division=0),
+    recall_score(y_test_bin, y_pred_xgb_bin_thermostat, zero_division=0),
+    f1_score(y_test_bin, y_pred_xgb_bin_thermostat, zero_division=0)
+]
+
+x = np.arange(len(labels))
+width = 0.3
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, rf_scores, width, label='Random Forest')
+rects2 = ax.bar(x + width/2, xgb_scores, width, label='XGBoost')
+
+ax.set_ylabel('Score')
+ax.set_title('Binary Classification Comparison (Thermostat Device)')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+
+for rects in [rects1, rects2]:
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(f'{height:.2f}', xy=(rect.get_x() + rect.get_width()/2, height),
+                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+
+plt.tight_layout()
+plt.show()
+
+
+
+#Multi-Class Classification: 
+print("\n===== Multi-Class Classification (Thermostat Device) =====")
+
+#Applying SMOTE 
+print("\nApplying SMOTE to Multi-Class Training Data...")
+smote = SMOTE(random_state=42)
+X_train_thermostat_multi_smote, y_train_thermostat_multi_smote = smote.fit_resample(X_train_multi, y_train_multi)
+
+print("New class distribution after SMOTE:")
+print(pd.Series(y_train_thermostat_multi_smote).value_counts())
+
+#Encode Labels for XGBoost
+le = LabelEncoder()
+y_train_thermostat_multi_encoded = le.fit_transform(y_train_thermostat_multi_smote)
+y_test_thermostat_multi_encoded = le.transform(y_test_multi)
+
+#Train RF
+rf_multi_thermostat = RandomForestClassifier(random_state=42)
+rf_multi_thermostat.fit(X_train_thermostat_multi_smote, y_train_thermostat_multi_smote)
+y_pred_rf_multi_thermostat = rf_multi_thermostat.predict(X_test_multi)
+
+#Train XGBoost 
+xgb_multi_thermostat = XGBClassifier(objective='multi:softmax',
+                                     num_class=len(np.unique(y_train_thermostat_multi_encoded)),
+                                     eval_metric='mlogloss',
+                                     random_state=42)
+xgb_multi_thermostat.fit(X_train_thermostat_multi_smote, y_train_thermostat_multi_encoded)
+y_pred_xgb_multi_thermostat = xgb_multi_thermostat.predict(X_test_multi)
+
+#Evaluation - RF
+print("\n--- Random Forest (Multi-Class) ---")
+print(classification_report(y_test_multi, y_pred_rf_multi_thermostat, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_multi, y_pred_rf_multi_thermostat), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest - Confusion Matrix (Thermostat Multi-Class)")
+plt.show()
+
+
+#Evaluation - XGBoost
+print("\n--- XGBoost (Multi-Class) ---")
+print(classification_report(y_test_thermostat_multi_encoded, y_pred_xgb_multi_thermostat, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_thermostat_multi_encoded, y_pred_xgb_multi_thermostat), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost - Confusion Matrix (Thermostat Multi-Class)")
+plt.show()
+
+#Classification Reports
+report_rf = classification_report(y_test_multi, y_pred_rf_multi_thermostat, output_dict=True, zero_division=0)
+report_xgb = classification_report(y_test_thermostat_multi_encoded, y_pred_xgb_multi_thermostat, output_dict=True, zero_division=0)
+
+class_labels = sorted(y_test_multi.unique())
+
+def extract_scores(report, class_labels):
+    precisions, recalls, f1s = [], [], []
+    for label in class_labels:
+        precisions.append(report[str(label)]['precision'] * 100)
+        recalls.append(report[str(label)]['recall'] * 100)
+        f1s.append(report[str(label)]['f1-score'] * 100)
+    return precisions, recalls, f1s
+
+prec_rf, rec_rf, f1_rf = extract_scores(report_rf, class_labels)
+prec_xgb, rec_xgb, f1_xgb = extract_scores(report_xgb, [str(le.transform([label])[0]) for label in class_labels])
+
+#Plot Function 
+def plot_per_class_metrics(class_labels, precisions, recalls, f1s, model_name):
+    x = np.arange(len(class_labels))
+    width = 0.2
+    fig, ax = plt.subplots(figsize=(10,5))
+
+    rects1 = ax.bar(x - width, precisions, width, label='Precision')
+    rects2 = ax.bar(x, recalls, width, label='Recall')
+    rects3 = ax.bar(x + width, f1s, width, label='F1-Score')
+
+    ax.set_ylabel('Score (%)')
+    ax.set_title(f'Per-Class Metrics ({model_name}) - Thermostat')
+    ax.set_xticks(x)
+    ax.set_xticklabels(class_labels, rotation=45)
+    ax.set_ylim(0, 110)
+    ax.legend()
+
+    for rects in [rects1, rects2, rects3]:
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f'{height:.1f}%',
+                        xy=(rect.get_x() + rect.get_width() / 2, height),
+                        xytext=(0, 3),
+                        textcoords="offset points",
+                        ha='center', va='bottom')
+
+    plt.tight_layout()
+    plt.show()
+
+plot_per_class_metrics(class_labels, prec_rf, rec_rf, f1_rf, "Random Forest (Thermostat)")
+plot_per_class_metrics(class_labels, prec_xgb, rec_xgb, f1_xgb, "XGBoost (Thermostat)")
+
+
+#Part 4: Validation: 
