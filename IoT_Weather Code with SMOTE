@@ -1,1 +1,243 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import (accuracy_score, precision_score, recall_score,
+                             f1_score, classification_report, confusion_matrix)
+from imblearn.over_sampling import SMOTE
+from sklearn.metrics import precision_recall_fscore_support
+
+#Part 1: preprocessing code: 
+#Loading dataset
+print("Loading IoT_Weather.csv.xlsx...")
+df_weather = pd.read_excel("IoT_Weather.csv.xlsx")
+
+#Adding device type and prediction columns
+df_weather['device_type'] = 'Weather'
+df_weather['prediction'] = df_weather['type']
+
+#Before preprocessing
+print("\n--- Before Preprocessing ---")
+print(df_weather.head())
+print("Missing values per column:\n", df_weather.isna().sum())
+
+#Drop 'date', 'time' columns if exist
+df_weather = df_weather.drop(columns=['date', 'time'], errors='ignore')
+
+#Drop missing values
+df_weather = df_weather.dropna()
+
+#Confirm shape after cleaning
+print("\nAfter dropping missing values:")
+print("Shape:", df_weather.shape)
+
+#Feature Selection
+features = ['temperature', 'pressure', 'humidity']
+X = df_weather[features]
+y_binary = df_weather['label']
+y_multiclass = df_weather['prediction']
+
+#Normalize features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+print("\n--- After Preprocessing ---")
+X_scaled_df = pd.DataFrame(X_scaled, columns=features)
+print(X_scaled_df.head())
+
+#Split dataset
+#Binary 
+X_train_bin, X_temp_bin, y_train_bin, y_temp_bin = train_test_split(
+    X_scaled, y_binary, test_size=0.3, random_state=42, stratify=y_binary)
+
+X_test_bin, X_val_bin, y_test_bin, y_val_bin = train_test_split(
+    X_temp_bin, y_temp_bin, test_size=0.33, random_state=42, stratify=y_temp_bin)
+
+#Multi-class 
+X_train_multi, X_temp_multi, y_train_multi, y_temp_multi = train_test_split(
+    X_scaled, y_multiclass, test_size=0.3, random_state=42, stratify=y_multiclass)
+
+X_test_multi, X_val_multi, y_test_multi, y_val_multi = train_test_split(
+    X_temp_multi, y_temp_multi, test_size=0.33, random_state=42, stratify=y_temp_multi)
+
+print(f"\nBinary - Train: {X_train_bin.shape}, Test: {X_test_bin.shape}, Validation: {X_val_bin.shape}")
+print(f"Multi-class - Train: {X_train_multi.shape}, Test: {X_test_multi.shape}, Validation: {X_val_multi.shape}")
+
+#Part 2 and 3: 
+#Binary Classification Code: 
+print("\n===== Binary Classification (Weather Device with SMOTE) =====")
+
+from imblearn.over_sampling import SMOTE
+
+# Apply SMOTE to binary classification training data
+print("\nApplying SMOTE to Binary Training Data...")
+smote = SMOTE(random_state=42)
+X_train_bin_smote, y_train_bin_smote = smote.fit_resample(X_train_bin, y_train_bin)
+
+print("New class distribution after SMOTE:")
+print(pd.Series(y_train_bin_smote).value_counts())
+
+
+#RF
+rf_bin = RandomForestClassifier(random_state=42)
+rf_bin.fit(X_train_bin_smote, y_train_bin_smote)
+y_pred_rf_bin = rf_bin.predict(X_test_bin)
+
+#XGBoost
+xgb_bin = XGBClassifier(eval_metric='logloss', random_state=42)
+xgb_bin.fit(X_train_bin_smote, y_train_bin_smote)
+y_pred_xgb_bin = xgb_bin.predict(X_test_bin)
+
+#RF Metrics
+acc_rf = accuracy_score(y_test_bin, y_pred_rf_bin)
+prec_rf = precision_score(y_test_bin, y_pred_rf_bin)
+recall_rf = recall_score(y_test_bin, y_pred_rf_bin)
+f1_rf = f1_score(y_test_bin, y_pred_rf_bin)
+
+print("\n--- Random Forest (with SMOTE) ---")
+print(classification_report(y_test_bin, y_pred_rf_bin))
+sns.heatmap(confusion_matrix(y_test_bin, y_pred_rf_bin), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest Binary Confusion Matrix (SMOTE)")
+plt.show()
+
+#XGBoost Metrics
+acc_xgb = accuracy_score(y_test_bin, y_pred_xgb_bin)
+prec_xgb = precision_score(y_test_bin, y_pred_xgb_bin)
+recall_xgb = recall_score(y_test_bin, y_pred_xgb_bin)
+f1_xgb = f1_score(y_test_bin, y_pred_xgb_bin)
+
+print("\n--- XGBoost (with SMOTE) ---")
+print(classification_report(y_test_bin, y_pred_xgb_bin))
+sns.heatmap(confusion_matrix(y_test_bin, y_pred_xgb_bin), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost Binary Confusion Matrix (SMOTE)")
+plt.show()
+
+#Bar graph for Binary metrics
+labels = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+rf_scores = [acc_rf, prec_rf, recall_rf, f1_rf]
+xgb_scores = [acc_xgb, prec_xgb, recall_xgb, f1_xgb]
+
+x = np.arange(len(labels))
+width = 0.3
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, rf_scores, width, label='Random Forest')
+rects2 = ax.bar(x + width/2, xgb_scores, width, label='XGBoost')
+
+ax.set_ylabel('Score')
+ax.set_title('Binary Classification Metrics (Weather Device with SMOTE)')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+
+for rects in [rects1, rects2]:
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(f'{height:.2f}', xy=(rect.get_x() + rect.get_width()/2, height),
+                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+
+plt.tight_layout()
+plt.show()
+
+
+#Multi-Class Classification Code: 
+print("\n===== Multi-CLass Classification (Weather Device with SMOTE) =====")
+
+#Applying SMOTE to training data
+print("\nApplying SMOTE to Multi-Class Training Data...")
+smote = SMOTE(random_state=42)
+X_train_multi_smote, y_train_multi_smote = smote.fit_resample(X_train_multi, y_train_multi)
+
+print("New class distribution after SMOTE:")
+print(pd.Series(y_train_multi_smote).value_counts())
+
+
+#Encode multi-class labels for XGBoost
+y_train_multi_encoded = y_train_multi_smote.astype('category').cat.codes
+y_test_multi_encoded = y_test_multi.astype('category').cat.codes
+
+#RF
+rf_multi = RandomForestClassifier(random_state=42)
+rf_multi.fit(X_train_multi_smote, y_train_multi_smote)
+y_pred_rf_multi = rf_multi.predict(X_test_multi)
+
+#XGBoost
+xgb_multi = XGBClassifier(eval_metric='mlogloss', random_state=42)
+xgb_multi.fit(X_train_multi_smote, y_train_multi_encoded)
+y_pred_xgb_multi = xgb_multi.predict(X_test_multi)
+
+#RF Metrics
+acc_rf_multi = accuracy_score(y_test_multi, y_pred_rf_multi)
+prec_rf_multi = precision_score(y_test_multi, y_pred_rf_multi, average='macro')
+recall_rf_multi = recall_score(y_test_multi, y_pred_rf_multi, average='macro')
+f1_rf_multi = f1_score(y_test_multi, y_pred_rf_multi, average='macro')
+
+print("\n--- Random Forest (Multi-Class with SMOTE) ---")
+print(classification_report(y_test_multi, y_pred_rf_multi))
+sns.heatmap(confusion_matrix(y_test_multi, y_pred_rf_multi), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest Multi-Class Confusion Matrix (SMOTE)")
+plt.show()
+
+#XGBoost Metrics
+acc_xgb_multi = accuracy_score(y_test_multi_encoded, y_pred_xgb_multi)
+prec_xgb_multi = precision_score(y_test_multi_encoded, y_pred_xgb_multi, average='macro')
+recall_xgb_multi = recall_score(y_test_multi_encoded, y_pred_xgb_multi, average='macro')
+f1_xgb_multi = f1_score(y_test_multi_encoded, y_pred_xgb_multi, average='macro')
+
+print("\n--- XGBoost (Multi-Class with SMOTE) ---")
+print(classification_report(y_test_multi_encoded, y_pred_xgb_multi))
+sns.heatmap(confusion_matrix(y_test_multi_encoded, y_pred_xgb_multi), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost Multi-Class Confusion Matrix (SMOTE)")
+plt.show()
+class_labels = sorted(y_test_multi.unique())  # use original labels, not encoded
+
+#RF Metrics per class
+prec_rf_class, recall_rf_class, f1_rf_class, _ = precision_recall_fscore_support(
+    y_test_multi, y_pred_rf_multi, labels=class_labels, average=None)
+
+#XGB Metrics per class
+prec_xgb_class, recall_xgb_class, f1_xgb_class, _ = precision_recall_fscore_support(
+    y_test_multi_encoded, y_pred_xgb_multi, labels=np.unique(y_test_multi_encoded), average=None)
+
+#Bar Plot Function
+def plot_class_metrics(class_labels, prec, recall, f1, model_name):
+    x = np.arange(len(class_labels))
+    width = 0.2
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    rects1 = ax.bar(x - width, prec, width, label='Precision')
+    rects2 = ax.bar(x, recall, width, label='Recall')
+    rects3 = ax.bar(x + width, f1, width, label='F1-Score')
+
+    ax.set_ylabel('Score')
+    ax.set_title(f'Per-Class Metrics for {model_name} (Weather with SMOTE)')
+    ax.set_xticks(x)
+    ax.set_xticklabels(class_labels, rotation=45)
+    ax.set_ylim(0, 1.1)
+    ax.legend()
+
+    for rects in [rects1, rects2, rects3]:
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f'{height:.2f}', xy=(rect.get_x() + rect.get_width()/2, height),
+                        xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+
+    plt.tight_layout()
+    plt.show()
+
+#Plot for RF
+plot_class_metrics(class_labels, prec_rf_class, recall_rf_class, f1_rf_class, "Random Forest")
+
+#Plot for XGBoost 
+category_map = dict(enumerate(y_train_multi_smote.astype('category').cat.categories))
+xgb_class_names = [category_map[i] for i in np.unique(y_test_multi_encoded)]
+
+plot_class_metrics(xgb_class_names, prec_xgb_class, recall_xgb_class, f1_xgb_class, "XGBoost")
+
+
+#Part 4: Validation:
