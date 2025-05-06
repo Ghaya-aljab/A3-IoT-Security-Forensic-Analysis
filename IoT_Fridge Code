@@ -1,1 +1,238 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, confusion_matrix
+from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report, confusion_matrix, precision_recall_fscore_support
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+
+#Part 1: Preprocessing Code: 
+#Loading the dataset
+print("Loading IoT_Fridge.csv.xlsx...")
+df_fridge = pd.read_excel("IoT_Fridge.csv.xlsx")
+
+#Adding device type and prediction columns
+df_fridge['device_type'] = 'Fridge'
+df_fridge['prediction'] = df_fridge['type']
+
+#Before preprocessing
+print("\n--- Before preprocessing ---")
+print(df_fridge.head())
+print("Missing values per column:\n", df_fridge.isna().sum())
+
+# Drop unnecessary columns
+df_fridge = df_fridge.drop(columns=['date', 'time', 'type'], errors='ignore')
+df_fridge = df_fridge.dropna()
+
+#Feature selection
+features = ['fridge_temperature']
+X_fridge = df_fridge[features]
+y_fridge_binary = df_fridge['label']
+y_fridge_multi = df_fridge['prediction']
+
+#Normalizing features
+scaler = StandardScaler()
+X_fridge_scaled = scaler.fit_transform(X_fridge)
+
+#After Preprocessing
+print("\n--- After Preprocessing ---")
+print(pd.DataFrame(X_fridge_scaled, columns=features).head())
+
+#Train/Test/Validation splitsfor binary
+X_train_fridge_bin, X_temp_fridge_bin, y_train_fridge_bin, y_temp_fridge_bin = train_test_split(
+    X_fridge_scaled, y_fridge_binary, test_size=0.3, random_state=42, stratify=y_fridge_binary)
+
+X_test_fridge_bin, X_val_fridge_bin, y_test_fridge_bin, y_val_fridge_bin = train_test_split(
+    X_temp_fridge_bin, y_temp_fridge_bin, test_size=0.33, random_state=42, stratify=y_temp_fridge_bin)
+
+# Train/Test/Validation splits for Multi-Class
+X_train_fridge_multi, X_temp_fridge_multi, y_train_fridge_multi, y_temp_fridge_multi = train_test_split(
+    X_fridge_scaled, y_fridge_multi, test_size=0.3, random_state=42, stratify=y_fridge_multi)
+
+X_test_fridge_multi, X_val_fridge_multi, y_test_fridge_multi, y_val_fridge_multi = train_test_split(
+    X_temp_fridge_multi, y_temp_fridge_multi, test_size=0.33, random_state=42, stratify=y_temp_fridge_multi)
+
+print(f"\nBinary - Train: {X_train_fridge_bin.shape}, Test: {X_test_fridge_bin.shape}, Validation: {X_val_fridge_bin.shape}")
+print(f"Multi-class - Train: {X_train_fridge_multi.shape}, Test: {X_test_fridge_multi.shape}, Validation: {X_val_fridge_multi.shape}")
+
+
+
+#Part 2 and 3: 
+#Binary Classification: 
+#Applying SMOTE 
+smote = SMOTE(random_state=42)
+X_train_fridge_bin_smote, y_train_fridge_bin_smote = smote.fit_resample(X_train_fridge_bin, y_train_fridge_bin)
+
+print("\nSMOTE applied to Binary Training Data")
+print("New class distribution:\n", pd.Series(y_train_fridge_bin_smote).value_counts())
+
+#Train RF
+rf_fridge_bin = RandomForestClassifier(random_state=42)
+rf_fridge_bin.fit(X_train_fridge_bin_smote, y_train_fridge_bin_smote)
+y_pred_rf_fridge_bin = rf_fridge_bin.predict(X_test_fridge_bin)
+
+#Train XGBoost
+xgb_fridge_bin = XGBClassifier(eval_metric='logloss', random_state=42)
+xgb_fridge_bin.fit(X_train_fridge_bin_smote, y_train_fridge_bin_smote)
+y_pred_xgb_fridge_bin = xgb_fridge_bin.predict(X_test_fridge_bin)
+
+#Metrics and Confusion Matrix for RF 
+print("\n--- Random Forest (Binary Classification) ---")
+print(f"Accuracy: {accuracy_score(y_test_fridge_bin, y_pred_rf_fridge_bin):.4f}")
+print("Confusion Matrix:\n", confusion_matrix(y_test_fridge_bin, y_pred_rf_fridge_bin))
+print("Classification Report:\n", classification_report(y_test_fridge_bin, y_pred_rf_fridge_bin))
+
+sns.heatmap(confusion_matrix(y_test_fridge_bin, y_pred_rf_fridge_bin), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest (Fridge Binary) - Confusion Matrix")
+plt.show()
+
+#Metrics and Confusion Matrix for XGBoost 
+print("\n--- XGBoost (Binary Classification) ---")
+print(f"Accuracy: {accuracy_score(y_test_fridge_bin, y_pred_xgb_fridge_bin):.4f}")
+print("Confusion Matrix:\n", confusion_matrix(y_test_fridge_bin, y_pred_xgb_fridge_bin))
+print("Classification Report:\n", classification_report(y_test_fridge_bin, y_pred_xgb_fridge_bin))
+
+sns.heatmap(confusion_matrix(y_test_fridge_bin, y_pred_xgb_fridge_bin), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost (Fridge Binary - Confusion Matrix")
+plt.show()
+
+#Bar Graph to compare 
+labels = ['Accuracy', 'Precision', 'Recall', 'F1-score']
+
+rf_scores_bin = [
+    accuracy_score(y_test_fridge_bin, y_pred_rf_fridge_bin),
+    precision_score(y_test_fridge_bin, y_pred_rf_fridge_bin, zero_division=0),
+    recall_score(y_test_fridge_bin, y_pred_rf_fridge_bin, zero_division=0),
+    f1_score(y_test_fridge_bin, y_pred_rf_fridge_bin, zero_division=0)
+]
+
+xgb_scores_bin = [
+    accuracy_score(y_test_fridge_bin, y_pred_xgb_fridge_bin),
+    precision_score(y_test_fridge_bin, y_pred_xgb_fridge_bin, zero_division=0),
+    recall_score(y_test_fridge_bin, y_pred_xgb_fridge_bin, zero_division=0),
+    f1_score(y_test_fridge_bin, y_pred_xgb_fridge_bin, zero_division=0)
+]
+
+x = np.arange(len(labels))
+width = 0.3
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, rf_scores_bin, width, label='Random Forest')
+rects2 = ax.bar(x + width/2, xgb_scores_bin, width, label='XGBoost')
+
+ax.set_ylabel('Score')
+ax.set_title('Binary Classification Comparison (Fridge Device - With SMOTE)')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+
+for rects in [rects1, rects2]:
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(f'{height:.2f}', xy=(rect.get_x() + rect.get_width()/2, height),
+                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+
+fig.tight_layout()
+plt.show()
+
+
+#Multi-Classification: 
+print("\n===== MULTI-CLASS CLASSIFICATION (Fridge Device) =====")
+
+#Split 
+X_train_fridge_multi, X_temp_fridge_multi, y_train_fridge_multi, y_temp_fridge_multi = train_test_split(
+    X_fridge_scaled, y_fridge_multi, test_size=0.3, random_state=42, stratify=y_fridge_multi)
+
+X_test_fridge_multi, X_val_fridge_multi, y_test_fridge_multi, y_val_fridge_multi = train_test_split(
+    X_temp_fridge_multi, y_temp_fridge_multi, test_size=0.33, random_state=42, stratify=y_temp_fridge_multi)
+
+#Applyinf SMOTE to training set
+smote = SMOTE(random_state=42)
+X_train_fridge_multi_smote, y_train_fridge_multi_smote = smote.fit_resample(X_train_fridge_multi, y_train_fridge_multi)
+
+print("\nSMOTE applied to Multi-Class Training Data")
+print("New class distribution:\n", pd.Series(y_train_fridge_multi_smote).value_counts())
+
+#Encode labels
+le = LabelEncoder()
+y_train_encoded = le.fit_transform(y_train_fridge_multi_smote)
+y_test_encoded = le.transform(y_test_fridge_multi)
+attack_labels = le.classes_
+
+#Train RF
+rf_fridge_multi = RandomForestClassifier(random_state=42)
+rf_fridge_multi.fit(X_train_fridge_multi_smote, y_train_fridge_multi_smote)
+y_pred_rf = rf_fridge_multi.predict(X_test_fridge_multi)
+
+#Train XGBoost
+xgb_fridge_multi = XGBClassifier(eval_metric='mlogloss', random_state=42)
+xgb_fridge_multi.fit(X_train_fridge_multi_smote, y_train_encoded)
+y_pred_xgb = xgb_fridge_multi.predict(X_test_fridge_multi)
+
+print("\n--- Random Forest ---")
+print(classification_report(y_test_fridge_multi, y_pred_rf, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_fridge_multi, y_pred_rf), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest (Fridge Multi-Class)")
+plt.show()
+
+print("\n--- XGBoost ---")
+print(classification_report(y_test_encoded, y_pred_xgb, zero_division=0))
+sns.heatmap(confusion_matrix(y_test_encoded, y_pred_xgb), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost (Fridge Multi-Class)")
+plt.show()
+
+#Metrics per class
+prec_rf, rec_rf, f1_rf, _ = precision_recall_fscore_support(y_test_fridge_multi, y_pred_rf, labels=attack_labels, zero_division=0)
+prec_xgb, rec_xgb, f1_xgb, _ = precision_recall_fscore_support(y_test_encoded, y_pred_xgb, labels=np.unique(y_test_encoded), zero_division=0)
+
+x = np.arange(len(attack_labels))
+width = 0.25
+
+#RF
+fig, ax = plt.subplots(figsize=(14, 6))
+ax.bar(x - width, prec_rf * 100, width, label='Precision')
+ax.bar(x, rec_rf * 100, width, label='Recall')
+ax.bar(x + width, f1_rf * 100, width, label='F1-score')
+ax.set_ylabel('Score (%)')
+ax.set_title('Random Forest - Fridge Multi-Class Metrics')
+ax.set_xticks(x)
+ax.set_xticklabels(attack_labels, rotation=45)
+ax.legend()
+for i, bar in enumerate(ax.patches):
+    height = bar.get_height()
+    ax.annotate(f'{height:.1f}%', (bar.get_x() + bar.get_width() / 2, height), ha='center', va='bottom', fontsize=8)
+plt.tight_layout()
+plt.show()
+
+#XGBoost
+fig, ax = plt.subplots(figsize=(14, 6))
+ax.bar(x - width, prec_xgb * 100, width, label='Precision')
+ax.bar(x, rec_xgb * 100, width, label='Recall')
+ax.bar(x + width, f1_xgb * 100, width, label='F1-score')
+ax.set_ylabel('Score (%)')
+ax.set_title('XGBoost - Fridge Multi-Class Metrics')
+ax.set_xticks(x)
+ax.set_xticklabels(attack_labels, rotation=45)
+ax.legend()
+for i, bar in enumerate(ax.patches):
+    height = bar.get_height()
+    ax.annotate(f'{height:.1f}%', (bar.get_x() + bar.get_width() / 2, height), ha='center', va='bottom', fontsize=8)
+plt.tight_layout()
+plt.show()
+
+
+#Part 4: Validation
+
 
