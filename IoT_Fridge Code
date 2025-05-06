@@ -149,7 +149,7 @@ plt.show()
 
 
 #Multi-Classification Code: 
-print("\n===== MULTI-CLASS CLASSIFICATION (Fridge Device) =====")
+print("\n===== Multi-Classification (Fridge Device) =====")
 
 #Split 
 X_train_fridge_multi, X_temp_fridge_multi, y_train_fridge_multi, y_temp_fridge_multi = train_test_split(
@@ -158,7 +158,7 @@ X_train_fridge_multi, X_temp_fridge_multi, y_train_fridge_multi, y_temp_fridge_m
 X_test_fridge_multi, X_val_fridge_multi, y_test_fridge_multi, y_val_fridge_multi = train_test_split(
     X_temp_fridge_multi, y_temp_fridge_multi, test_size=0.33, random_state=42, stratify=y_temp_fridge_multi)
 
-#Applyinf SMOTE to training set
+# Applying SMOTE to the training set
 smote = SMOTE(random_state=42)
 X_train_fridge_multi_smote, y_train_fridge_multi_smote = smote.fit_resample(X_train_fridge_multi, y_train_fridge_multi)
 
@@ -233,6 +233,6 @@ plt.tight_layout()
 plt.show()
 
 
-#Part 4: Validation
+#Part 4: Validation Code: 1
 
 
