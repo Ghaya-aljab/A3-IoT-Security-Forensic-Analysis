@@ -275,4 +275,56 @@ plot_per_class_metrics(['minor_attack', 'normal', 'severe_attack'], precisions_x
 
 
 #Part 4: Validation Code:  
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+print("\n=====  Testing on 10% unseen data: Binary Classification  =====")
+
+# --- Random Forest Validation (Binary) ---
+y_val_pred_rf_bin = rf_garage_bin.predict(X_val_garage_bin)
+print("\n--- Random Forest (Binary, Validation Set) ---")
+print(classification_report(y_val_garage_bin, y_val_pred_rf_bin, zero_division=0))
+print("Confusion Matrix:\n", confusion_matrix(y_val_garage_bin, y_val_pred_rf_bin))
+
+sns.heatmap(confusion_matrix(y_val_garage_bin, y_val_pred_rf_bin), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest Binary Confusion Matrix (Garage Door)")
+plt.show()
+
+# --- XGBoost Validation (Binary) ---
+y_val_pred_xgb_bin = xgb_garage_bin.predict(X_val_garage_bin)
+print("\n--- XGBoost (Binary, Validation Set) ---")
+print(classification_report(y_val_garage_bin, y_val_pred_xgb_bin, zero_division=0))
+print("Confusion Matrix:\n", confusion_matrix(y_val_garage_bin, y_val_pred_xgb_bin))
+
+sns.heatmap(confusion_matrix(y_val_garage_bin, y_val_pred_xgb_bin), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost Binary Confusion Matrix (Garage Door)")
+plt.show()
+
+
+print("\n===== Testing on 10% unseen data: Multi-Class Classification =====")
+
+# --- Random Forest Validation (Multi-Class) ---
+y_val_pred_rf_multi = rf_garage_multi_remapped.predict(X_val_garage_multi)
+print("\n--- Random Forest (Multi-Class, Validation Set) ---")
+print(classification_report(y_val_garage_multi_remapped, y_val_pred_rf_multi, zero_division=0))
+print("Confusion Matrix:\n", confusion_matrix(y_val_garage_multi_remapped, y_val_pred_rf_multi))
+
+sns.heatmap(confusion_matrix(y_val_garage_multi_remapped, y_val_pred_rf_multi), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest Multi-Class Confusion Matrix (Garage Door)")
+plt.show()
+
+# --- XGBoost Validation (Multi-Class) ---
+label_encoder_val = LabelEncoder()
+y_val_garage_multi_remapped_encoded = label_encoder_val.fit_transform(y_val_garage_multi_remapped)
+y_val_pred_xgb_multi = xgb_garage_multi_remapped.predict(X_val_garage_multi)
+
+print("\n--- XGBoost (Multi-Class, Validation Set) ---")
+print(classification_report(y_val_garage_multi_remapped_encoded, y_val_pred_xgb_multi, zero_division=0))
+print("Confusion Matrix:\n", confusion_matrix(y_val_garage_multi_remapped_encoded, y_val_pred_xgb_multi))
+
+sns.heatmap(confusion_matrix(y_val_garage_multi_remapped_encoded, y_val_pred_xgb_multi), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost Multi-Class Confusion Matrix (Garage Door)")
+plt.show()
 
