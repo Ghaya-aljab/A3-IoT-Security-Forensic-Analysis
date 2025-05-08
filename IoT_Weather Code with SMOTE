@@ -242,3 +242,54 @@ plot_class_metrics(xgb_class_names, prec_xgb_class, recall_xgb_class, f1_xgb_cla
 
 
 #Part 4: Validation Code:
+#Testing Binary Models on Unseen Data (Validation Set)
+
+print("\n===== Testing on 10% unseen data: Binary Classification =====")
+
+#RF on Validation
+y_val_pred_rf_bin = rf_bin.predict(X_val_bin)
+print("\n--- Random Forest (Binary, Validation Set) ---")
+print("Accuracy:", accuracy_score(y_val_bin, y_val_pred_rf_bin))
+print("Classification Report:\n", classification_report(y_val_bin, y_val_pred_rf_bin))
+
+sns.heatmap(confusion_matrix(y_val_bin, y_val_pred_rf_bin), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest Multi-Class Confusion Matrix (Weather - Validation)")
+plt.show()
+
+#XGBoost on Validation
+y_val_pred_xgb_bin = xgb_bin.predict(X_val_bin)
+print("\n--- XGBoost (Binary, Validation Set) ---")
+print("Accuracy:", accuracy_score(y_val_bin, y_val_pred_xgb_bin))
+print("Classification Report:\n", classification_report(y_val_bin, y_val_pred_xgb_bin))
+
+sns.heatmap(confusion_matrix(y_val_bin, y_val_pred_xgb_bin), annot=True, fmt='d', cmap='Blues')
+plt.title("Random Forest Multi-Class Confusion Matrix (Weather - Validation)")
+plt.show()
+
+
+print("\n===== Testing on 10% unseen data: Multi-Class Classification =====")
+
+#Encode validation labels
+y_val_multi_encoded = y_val_multi.astype('category').cat.codes
+
+#RFy_val_pred_rf_multi = rf_multi.predict(X_val_multi)
+
+print("\n--- Random Forest (Multi-Class, Validation Set) ---")
+print("Accuracy:", accuracy_score(y_val_multi, y_val_pred_rf_multi))
+print("Classification Report:\n", classification_report(y_val_multi, y_val_pred_rf_multi))
+
+sns.heatmap(confusion_matrix(y_val_multi, y_val_pred_rf_multi), annot=True, fmt='d', cmap='Greens')
+plt.title("Random Forest Multi-Class Confusion Matrix (Weather - Validation)")
+plt.show()
+
+#XGBoost 
+y_val_pred_xgb_multi = xgb_multi.predict(X_val_multi)
+
+print("\n--- XGBoost (Multi-Class, Validation Set) ---")
+print("Accuracy:", accuracy_score(y_val_multi_encoded, y_val_pred_xgb_multi))
+print("Classification Report:\n", classification_report(y_val_multi_encoded, y_val_pred_xgb_multi))
+
+sns.heatmap(confusion_matrix(y_val_multi_encoded, y_val_pred_xgb_multi), annot=True, fmt='d', cmap='Greens')
+plt.title("XGBoost Multi-Class Confusion Matrix (Weather - Validation)")
+plt.show()
+
