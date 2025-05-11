@@ -197,4 +197,73 @@ plot_class_metrics(class_labels, prec_xgb, rec_xgb, f1_xgb, "XGBoost")
 
 
 #Part 4: Validation Code: 
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 
+print("\n===== Binary Classification Validation (GPS Tracker) =====")
+
+# Predict using previously trained models
+y_val_pred_rf_bin = rf_bin.predict(X_val_bin)
+y_val_pred_xgb_bin = xgb_bin.predict(X_val_bin)
+
+# Random Forest Evaluation (Binary)
+print("\n--- Random Forest ---")
+print(classification_report(y_val_bin, y_val_pred_rf_bin, zero_division=0))
+
+# XGBoost Evaluation (Binary)
+print("\n--- XGBoost ---")
+print(classification_report(y_val_bin, y_val_pred_xgb_bin, zero_division=0))
+
+# Plot confusion matrices
+def plot_confusion_matrix(y_true, y_pred, model_name):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(f'Confusion Matrix - {model_name} (Binary - Validation)')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.tight_layout()
+    plt.show()
+
+plot_confusion_matrix(y_val_bin, y_val_pred_rf_bin, "Random Forest")
+plot_confusion_matrix(y_val_bin, y_val_pred_xgb_bin, "XGBoost")
+
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+
+print("\n===== Multi-Class Validation (GPS Tracker) =====")
+
+# Encode the validation labels
+le_val = LabelEncoder()
+y_val_multi_encoded = le_val.fit_transform(y_val_multi)
+
+# Apply the same transformation to predicted classes
+# Reuse previously trained models: rf_multi and xgb_multi
+
+# Random Forest Predictions
+y_val_pred_rf = rf_multi.predict(X_val_multi)
+
+# XGBoost Predictions (requires encoding input)
+y_val_pred_xgb = xgb_multi.predict(X_val_multi)
+
+# Random Forest Evaluation
+print("\n--- Random Forest (Validation) ---")
+print(classification_report(y_val_multi, y_val_pred_rf, zero_division=0))
+
+# XGBoost Evaluation
+print("\n--- XGBoost (Validation) ---")
+print(classification_report(le_val.transform(y_val_multi), y_val_pred_xgb, zero_division=0))
+
+# Confusion matrix function (if not already defined)
+def plot_confusion_matrix(y_true, y_pred, model_name):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(f'Confusion Matrix - {model_name} (Validation - Multi-Class)')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.tight_layout()
+    plt.show()
+
+# Plot confusion matrices
+plot_confusion_matrix(y_val_multi, y_val_pred_rf, "Random Forest")
+plot_confusion_matrix(y_val_multi_encoded, y_val_pred_xgb, "XGBoost")
